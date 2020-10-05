@@ -1,0 +1,16 @@
+go.pdf
+cyeh-cs124.pem
+.ssh
+
+# go
+/go
+
+# build
+**/bin
+*.exe
+
+# etc
+/.cache
+/.vscode-server
+/.bash_history
+/.bash_logout
