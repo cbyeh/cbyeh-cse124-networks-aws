@@ -12,9 +12,11 @@
 ~H
 # Command Line History (newest to oldest):
 :q!
-|2,0,1601935006,,"q!"
+|2,0,1601957972,,"q!"
+:wq!
+|2,0,1601946765,,"wq!"
 :wq
-|2,0,1601935003,,"wq"
+|2,0,1601946764,,"wq"
 
 # Search String History (newest to oldest):
 
@@ -27,16 +29,86 @@
 # Registers:
 
 # File marks:
-'0  2  0  /home/.bashrc
-|4,48,2,0,1601935006,"/home/.bashrc"
+'0  2  0  ~/index.html
+|4,48,2,0,1601957972,"~/index.html"
+'1  39  33  /etc/sysctl.conf
+|4,49,39,33,1601946768,"/etc/sysctl.conf"
+'2  1  0  /proc/sys/fs/inotify/max_user_watches
+|4,50,1,0,1601946730,"/proc/sys/fs/inotify/max_user_watches"
+'3  2  0  /home/.bashrc
+|4,51,2,0,1601935006,"/home/.bashrc"
 
 # Jumplist (newest first):
+-'  2  0  ~/index.html
+|4,39,2,0,1601957972,"~/index.html"
+-'  1  0  ~/index.html
+|4,39,1,0,1601957882,"~/index.html"
+-'  39  33  /etc/sysctl.conf
+|4,39,39,33,1601946768,"/etc/sysctl.conf"
+-'  39  33  /etc/sysctl.conf
+|4,39,39,33,1601946768,"/etc/sysctl.conf"
+-'  1  0  /etc/sysctl.conf
+|4,39,1,0,1601946735,"/etc/sysctl.conf"
+-'  1  0  /etc/sysctl.conf
+|4,39,1,0,1601946735,"/etc/sysctl.conf"
+-'  1  0  /proc/sys/fs/inotify/max_user_watches
+|4,39,1,0,1601946730,"/proc/sys/fs/inotify/max_user_watches"
+-'  1  0  /proc/sys/fs/inotify/max_user_watches
+|4,39,1,0,1601946730,"/proc/sys/fs/inotify/max_user_watches"
+-'  1  0  /proc/sys/fs/inotify/max_user_watches
+|4,39,1,0,1601946730,"/proc/sys/fs/inotify/max_user_watches"
+-'  1  0  /proc/sys/fs/inotify/max_user_watches
+|4,39,1,0,1601946730,"/proc/sys/fs/inotify/max_user_watches"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
+-'  2  0  /home/.bashrc
+|4,39,2,0,1601935006,"/home/.bashrc"
 -'  2  0  /home/.bashrc
 |4,39,2,0,1601935006,"/home/.bashrc"
 -'  1  0  /home/.bashrc
 |4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
+-'  1  0  /home/.bashrc
+|4,39,1,0,1601934990,"/home/.bashrc"
 
 # History of marks within files (newest to oldest):
+
+> ~/index.html
+	*	1601957970	0
+	"	2	0
+
+> /etc/sysctl.conf
+	*	1601946767	0
+	"	39	33
+	^	39	34
+	.	39	33
+	+	38	0
+	+	39	33
+
+> /proc/sys/fs/inotify/max_user_watches
+	*	1601946730	0
+	"	1	0
 
 > /home/.bashrc
 	*	1601935005	0
