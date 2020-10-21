@@ -8,8 +8,10 @@ import "net"
 func NewHttpdServer(port, docRoot, mimePath string) (*HttpServer, error) {
 
 	// Initialize mimeMap for server to refer
-	mimeMap := make(map[string]string)
-	// for eveyrthing in mime_types, add to mime
+	mimeMap, err := ParseMIME(mimePath)
+	if err != nil {
+		return nil, err
+	}
 
 	// Return pointer to HttpServer
 	httpdServer := HttpServer{port, docRoot, mimePath, mimeMap}
