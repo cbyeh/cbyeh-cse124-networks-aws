@@ -32,7 +32,6 @@ func (hs *HttpServer) Start() (err error) {
 	}
 
 	// Accept connection from client
-	print("Listening")
 	c, err := l.Accept()
 	if err != nil {
 		return err

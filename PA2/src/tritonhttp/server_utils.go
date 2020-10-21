@@ -1,7 +1,8 @@
 package tritonhttp
 
 import (
-	"io/ioutil"
+	"bufio"
+	"os"
 	"strings"
 )
 
@@ -11,15 +12,20 @@ import (
 func ParseMIME(MIMEPath string) (MIMEMap map[string]string, err error) {
 	mimeMap := make(map[string]string)
 
-	// Open mime.types, read line by line and push to mimeMap
-	data, err := ioutil.ReadFile(MIMEPath)
+	// Open mime.types
+	file, err := os.Open(MIMEPath)
 	if err != nil {
 		return nil, err
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		split := strings.Split(line, " ")
-		mimeMap[split[0]] = split[1]
+
+	// Read line by line and push to mimeMap
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		keyValuePair := strings.Split(scanner.Text(), " ")
+		mimeMap[keyValuePair[0]] = keyValuePair[1]
+		println(mimeMap[keyValuePair[0]])
 	}
+	file.Close()
 
 	return mimeMap, nil
 }
