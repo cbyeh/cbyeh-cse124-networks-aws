@@ -4,8 +4,8 @@ import (
 	"net"
 )
 
-/* 
-For a connection, keep handling requests until 
+/*
+For a connection, keep handling requests until
 	1. a timeout occurs or
 	2. client closes connection or
 	3. client sends a bad request

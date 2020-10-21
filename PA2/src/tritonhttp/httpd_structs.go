@@ -1,10 +1,10 @@
 package tritonhttp
 
-type HttpServer	struct {
-	ServerPort	string
-	DocRoot		string
-	MIMEPath	string
-	MIMEMap		map[string]string
+type HttpServer struct {
+	ServerPort string
+	DocRoot    string
+	MIMEPath   string
+	MIMEMap    map[string]string
 }
 
 type HttpResponseHeader struct {
