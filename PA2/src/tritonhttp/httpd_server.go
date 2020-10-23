@@ -1,6 +1,8 @@
 package tritonhttp
 
-import "net"
+import (
+	"net"
+)
 
 /**
 	Initialize the tritonhttp server by populating HttpServer structure
@@ -26,19 +28,19 @@ func (hs *HttpServer) Start() (err error) {
 
 	// Start listening to the server port
 	l, err := net.Listen("tcp", hs.ServerPort)
-
 	if err != nil {
 		return err
 	}
 
 	// Accept connection from client
-	c, err := l.Accept()
-	if err != nil {
-		return err
+	for {
+		c, err := l.Accept()
+		if err != nil {
+			return err
+		}
+		// Spawn a go routine to handle request
+		go hs.handleConnection(c)
 	}
-
-	// Spawn a go routine to handle request
-	go hs.handleConnection(c)
 
 	return nil
 

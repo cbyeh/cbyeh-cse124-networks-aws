@@ -23,7 +23,6 @@ func ParseMIME(MIMEPath string) (MIMEMap map[string]string, err error) {
 	for scanner.Scan() {
 		keyValuePair := strings.Split(scanner.Text(), " ")
 		mimeMap[keyValuePair[0]] = keyValuePair[1]
-		println(mimeMap[keyValuePair[0]])
 	}
 	file.Close()
 
