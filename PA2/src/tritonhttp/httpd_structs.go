@@ -14,6 +14,7 @@ type HttpResponseHeader struct {
 	ContentLength rune
 	Connection    string
 	InitialLine   string
+	FilePath      string
 }
 
 type HttpRequestHeader struct {

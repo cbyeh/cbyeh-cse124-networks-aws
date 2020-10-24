@@ -1,6 +1,7 @@
 package tritonhttp
 
 import (
+	"log"
 	"net"
 	"strings"
 	"time"
@@ -15,56 +16,71 @@ For a connection, keep handling requests until
 func (hs *HttpServer) handleConnection(conn net.Conn) {
 
 	defer conn.Close()
+
 	buf := make([]byte, 10)
 	remaining := ""
-	const timeout = 5 * time.Second
+	isFirstLine := true
+
 	var NewHttpRequestHeader HttpRequestHeader
 
 	// Start a loop for reading requests continuously
 	for {
 
 		// Set a timeout for read operation
-		conn.SetReadDeadline(time.Now().Add(timeout))
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 
 		// Read from the connection socket into a buffer
 		size, err := conn.Read(buf)
 		if err != nil {
+			log.Fatal(err)
+			conn.Close()
 			return
 		}
 		data := buf[:size]
 		remaining += string(data)
 
 		// Validate the request lines that were read
-		for strings.Contains(remaining, "\n") {
-			idx := strings.Index(remaining, "\n")
+		for strings.Contains(remaining, "\r\n") {
+			idx := strings.Index(remaining, "\r\n")
 			line := remaining[:idx]
-			tokens := strings.Split(line, " ")
+
+			// Update any ongoing requests
+			remaining = remaining[idx+1:]
 
 			// Done with request
-			if len(tokens) == 1 {
-				break
+			if line == "\n" {
+				// Handle any complete requests
+				if NewHttpRequestHeader.Host != "" && NewHttpRequestHeader.InitialLine != "" {
+					hs.handleResponse(&NewHttpRequestHeader, conn)
+				} else {
+					hs.handleBadRequest(conn)
+				}
+				isFirstLine = true
+				return
 			}
 
 			// Fill request header, check for errors
-			if tokens[0][len(tokens[0])-1:] != ":" {
-				hs.handleBadRequest(conn)
-			} else if tokens[0] == "Host:" {
-				NewHttpRequestHeader.Host = tokens[1]
-			} else if tokens[0] == "Connection:" {
-				NewHttpRequestHeader.Connection = tokens[0]
-			} else if tokens[0] == "GET" {
-				NewHttpRequestHeader.InitialLine = tokens[0] + tokens[1] + tokens[2]
+			if isFirstLine == true { // Special case for initial line
+				isFirstLine = false
+				tokens := strings.Split(line, " ")
+				if tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
+					NewHttpRequestHeader.InitialLine = line
+				} else {
+					hs.handleBadRequest(conn)
+					return
+				}
+			} else {
+				split := strings.Split(line, " ")
+				key := split[0]
+				value := split[1]
+				if strings.Contains(key, "Host:") {
+					NewHttpRequestHeader.Host = value
+				} else if strings.Contains(key, "Connection") {
+					NewHttpRequestHeader.Connection = value
+				}
 			}
-			// Update any ongoing requests
-			remaining = remaining[idx+1:]
-		}
-		// Handle any complete requests
-		if NewHttpRequestHeader.Host != "" && NewHttpRequestHeader.Connection != "" && NewHttpRequestHeader.InitialLine != "" {
-			hs.handleResponse(&NewHttpRequestHeader, conn)
-		} else {
-			hs.handleBadRequest(conn)
-		}
 
+		}
 	}
 
 }
