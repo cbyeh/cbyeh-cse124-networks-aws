@@ -117,7 +117,7 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 	response += "\r\n"
 	println("\n" + response + "\n")
 	fmt.Fprint(w, response)
-	// w.Flush()
+	w.Flush()
 
 	// Send file if required
 	if tokens[1] == "200" {
@@ -135,7 +135,4 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 		file.Close()
 	}
 
-	fmt.Fprint(w, "\r\n")
-	w.Flush()
-	// Hint - Use the bufio package to write response
 }
