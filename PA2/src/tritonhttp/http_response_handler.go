@@ -2,6 +2,8 @@ package tritonhttp
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -12,13 +14,13 @@ import (
 
 func (hs *HttpServer) handleBadRequest(conn net.Conn) {
 	var NewHttpResponseHeader HttpResponseHeader
-	NewHttpResponseHeader.InitialLine = "HTTP/1.1 400 Bad Request"
+	NewHttpResponseHeader.InitialLine = "HTTP/1.1 400 Bad Request\r\n"
 	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
 func (hs *HttpServer) handleFileNotFoundRequest(requestHeader *HttpRequestHeader, conn net.Conn) {
 	var NewHttpResponseHeader HttpResponseHeader
-	NewHttpResponseHeader.InitialLine = "HTTP/1.1 404 Not Found"
+	NewHttpResponseHeader.InitialLine = "HTTP/1.1 404 Not Found\r\n"
 	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
@@ -46,12 +48,13 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 			}
 			_, err = conn.Write(bytes)
 			if err != nil {
-				return "HTTP/1.1 400 Bad extension"
+				return "HTTP/1.1 400 Bad Request"
 			}
 		}
-		println("hello")
 		file.Close()
-		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK"
+		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
+		NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
+		NewHttpResponseHeader.FilePath = hs.DocRoot + "/index.html"
 		hs.sendResponse(NewHttpResponseHeader, conn)
 		return "HTTP/1.1 200 OK"
 	}
@@ -70,8 +73,8 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 		hs.handleFileNotFoundRequest(requestHeader, conn)
 	}
 	file.Close()
-	NewHttpResponseHeader.ContentType = hs.MIMEMap[extension]
-	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK"
+	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
+	NewHttpResponseHeader.ContentType = hs.MIMEMap[extension] + "\r\n"
 	NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1]
 	hs.sendResponse(NewHttpResponseHeader, conn)
 	return "HTTP/1.1 200 OK"
@@ -80,14 +83,35 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.Conn) {
 
 	// Send headers
-	stats := []byte("HTTP/1.1 200 OK\n")
-	println(stats)
-	_, err := conn.Write(stats)
+	w := bufio.NewWriter(conn)
+	response := ""
+	initialLine := responseHeader.InitialLine // Append initial line first
+	response += initialLine
+	tokens := strings.Split(initialLine, " ")
+	if tokens[1] == "200" { // If OK, append Last-Modified, Content-Type, Content-Length
+		response += responseHeader.LastModified
+		response += responseHeader.ContentType
+		response += string(responseHeader.ContentLength)
+	}
+	response += responseHeader.Connection
+	response += "\n"
+	println(response)
+	fmt.Fprint(w, response)
+	w.Flush()
+
+	// Send file if required
+	buf := make([]byte, 10)
+	file, err := os.Open(responseHeader.FilePath)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Send file if required
+	if responseHeader.FilePath != "" {
+		_, err := io.CopyBuffer(conn, file, buf)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	file.Close()
 
 	// Hint - Use the bufio package to write response
 }
