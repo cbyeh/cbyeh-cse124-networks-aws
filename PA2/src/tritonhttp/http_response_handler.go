@@ -16,12 +16,14 @@ import (
 func (hs *HttpServer) handleBadRequest(conn net.Conn) {
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 400 Bad Request\r\n"
+	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
 func (hs *HttpServer) handleFileNotFoundRequest(requestHeader *HttpRequestHeader, conn net.Conn) {
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 404 Not Found\r\n"
+	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
@@ -32,12 +34,16 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 
 	var NewHttpResponseHeader HttpResponseHeader
 
+	print("HIII")
+	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
+	println(NewHttpResponseHeader.Server)
+
 	if initialLineTokens[1] == "/" {
 
 		file, err := os.Open(hs.DocRoot + "/index.html")
 		if err != nil {
-			hs.handleFileNotFoundRequest(requestHeader, conn)
 			log.Fatal(err)
+			hs.handleFileNotFoundRequest(requestHeader, conn)
 		}
 
 		stat, err := file.Stat()
@@ -60,7 +66,6 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 		// }
 		// file.Close()
 		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
-		NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 		NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
 		NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
 		NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
@@ -79,8 +84,8 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	}
 	file, err := os.Open(location)
 	if err != nil {
-		log.Fatal(err)
 		hs.handleFileNotFoundRequest(requestHeader, conn)
+		log.Fatal(err)
 	}
 
 	stat, err := file.Stat()
@@ -90,7 +95,6 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 
 	file.Close()
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
-	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 	NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
 	NewHttpResponseHeader.ContentType = hs.MIMEMap[extension] + "\r\n"
 	NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
@@ -107,6 +111,7 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 	initialLine := responseHeader.InitialLine // Append initial line first
 	response += initialLine
 	tokens := strings.Split(initialLine, " ")
+
 	response += "Server: " + responseHeader.Server
 	if tokens[1] == "200" { // If OK, append Last-Modified, Content-Type, Content-Length
 		response += "Last-Modified: " + responseHeader.LastModified
@@ -119,8 +124,8 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 	fmt.Fprint(w, response)
 	w.Flush()
 
-	// Send file if required
 	if tokens[1] == "200" {
+		// Send file if required
 		buf := make([]byte, 10)
 		file, err := os.Open(responseHeader.FilePath)
 		if err != nil {
@@ -135,4 +140,5 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 		file.Close()
 	}
 
+	// Hint - Use the bufio package to write response
 }
