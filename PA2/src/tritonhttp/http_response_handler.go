@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -38,22 +39,31 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 			log.Fatal(err)
 			hs.handleFileNotFoundRequest(requestHeader, conn)
 		}
+
+		stat, err := file.Stat()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		// Write index.html to connection
 		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		r := bufio.NewReader(file)
-		for {
-			bytes, err := r.ReadBytes('\n')
-			if err != nil {
-				break
-			}
-			_, err = conn.Write(bytes)
-			if err != nil {
-				return "HTTP/1.1 400 Bad Request"
-			}
-		}
-		file.Close()
+		// r := bufio.NewReader(file)
+		// for {
+		// 	bytes, err := r.ReadBytes('\n')
+		// 	if err != nil {
+		// 		break
+		// 	}
+		// 	_, err = conn.Write(bytes)
+		// 	if err != nil {
+		// 		return "HTTP/1.1 400 Bad Request"
+		// 	}
+		// }
+		// file.Close()
 		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
+		NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
+		NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
 		NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
+		NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
 		NewHttpResponseHeader.FilePath = hs.DocRoot + "/index.html"
 		hs.sendResponse(NewHttpResponseHeader, conn)
 		return "HTTP/1.1 200 OK"
@@ -72,9 +82,18 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 		log.Fatal(err)
 		hs.handleFileNotFoundRequest(requestHeader, conn)
 	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	file.Close()
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
+	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
+	NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
 	NewHttpResponseHeader.ContentType = hs.MIMEMap[extension] + "\r\n"
+	NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
 	NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1]
 	hs.sendResponse(NewHttpResponseHeader, conn)
 	return "HTTP/1.1 200 OK"
@@ -88,14 +107,15 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 	initialLine := responseHeader.InitialLine // Append initial line first
 	response += initialLine
 	tokens := strings.Split(initialLine, " ")
+	response += "Server: " + responseHeader.Server
 	if tokens[1] == "200" { // If OK, append Last-Modified, Content-Type, Content-Length
-		response += responseHeader.LastModified
-		response += responseHeader.ContentType
-		response += string(responseHeader.ContentLength)
+		response += "Last-Modified: " + responseHeader.LastModified
+		response += "Content-Type: " + responseHeader.ContentType
+		response += "Content-Length: " + responseHeader.ContentLength
 	}
 	response += responseHeader.Connection
-	response += "\n"
-	println(response)
+	response += "\r\n"
+	println("\n" + response + "\n")
 	fmt.Fprint(w, response)
 	w.Flush()
 

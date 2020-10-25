@@ -11,9 +11,10 @@ type HttpResponseHeader struct {
 	Date          string
 	LastModified  string
 	ContentType   string
-	ContentLength rune
+	ContentLength string
 	Connection    string
 	InitialLine   string
+	Server        string
 	FilePath      string
 }
 
