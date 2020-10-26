@@ -41,14 +41,11 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 
 		file, err := os.Open(hs.DocRoot + "/index.html")
 		if err != nil {
-			log.Fatal(err)
 			hs.handleFileNotFoundRequest(requestHeader, conn)
+			return
 		}
 
-		stat, err := file.Stat()
-		if err != nil {
-			log.Fatal(err)
-		}
+		stat, _ := file.Stat()
 
 		// Write index.html to connection
 		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
@@ -74,12 +71,9 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 
 	if err != nil || err2 != nil {
 		hs.handleFileNotFoundRequest(requestHeader, conn)
-		log.Fatal(err)
+		return
 	}
-	stat, err := file.Stat()
-	if err != nil {
-		log.Fatal(err)
-	}
+	stat, _ := file.Stat()
 
 	file.Close()
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
