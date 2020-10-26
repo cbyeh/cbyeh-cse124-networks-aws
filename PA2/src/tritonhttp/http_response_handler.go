@@ -37,9 +37,9 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 	println(NewHttpResponseHeader.Server)
 
-	if initialLineTokens[1] == "/" {
+	if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
 
-		file, err := os.Open(hs.DocRoot + "/index.html")
+		file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
 		if err != nil {
 			hs.handleFileNotFoundRequest(requestHeader, conn)
 			return

@@ -44,9 +44,6 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 			idx := strings.Index(remaining, "\r\n")
 			line := remaining[:idx]
 
-			// Update any ongoing requests
-			remaining = remaining[idx+1:]
-
 			// Done with request
 			if line == "\n" {
 				// Handle any complete requests
@@ -63,22 +60,36 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 			if isFirstLine == true { // Special case for initial line
 				isFirstLine = false
 				tokens := strings.Split(line, " ")
-				if tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
+				if line[:4] == "GET " && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" && len(tokens) == 3 {
 					NewHttpRequestHeader.InitialLine = line
 				} else {
 					hs.handleBadRequest(conn)
 					return
 				}
 			} else {
-				split := strings.Split(line, " ")
-				key := split[0]
-				value := split[1]
-				if strings.Contains(key, "Host:") {
+				if !strings.Contains(line, ":") {
+					hs.handleBadRequest(conn)
+					return
+				}
+				// Find colon and make sure key is all letters before colon
+				colonIdx := strings.Index(line, ":")
+				key := line[1:colonIdx]
+				if strings.Contains(key, " ") {
+					hs.handleBadRequest(conn)
+					return
+				}
+
+				// Get value by trimming off spaces on the left
+				value := strings.TrimLeft(line[colonIdx+1:], " ")
+				if key == "Host" {
 					NewHttpRequestHeader.Host = value
-				} else if strings.Contains(key, "Connection") {
+				} else if key == "Connection" {
 					NewHttpRequestHeader.Connection = value
 				}
 			}
+
+			// Update any ongoing requests
+			remaining = remaining[idx+1:]
 
 		}
 	}
