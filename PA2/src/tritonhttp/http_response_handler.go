@@ -56,6 +56,7 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 			NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
 			NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1] + "index.html"
 			hs.sendResponse(NewHttpResponseHeader, conn)
+			return
 		}
 		// Else handle non-root request
 		location := hs.DocRoot + initialLineTokens[1]
@@ -68,6 +69,7 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 		file, err := os.Open(location)
 		if err != nil {
 			hs.handleFileNotFoundRequest(requestHeader, conn)
+			return
 		}
 
 		stat, _ := file.Stat()
