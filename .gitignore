@@ -3,6 +3,9 @@
 
 # etc
 /.cache
+/.local
+/.pylint.d
+/.vscode
 /.vscode-server
 /.bash_history
 /.bash_logout
