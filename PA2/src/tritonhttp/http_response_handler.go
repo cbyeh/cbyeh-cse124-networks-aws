@@ -35,6 +35,7 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	// Check if headers are OK
 	if requestHeader.Host == "" || requestHeader.IsBadRequest == true {
 		hs.handleBadRequest(conn)
+		return
 	}
 
 	// Check if initial line is valid. Send good response if so and file is valid
