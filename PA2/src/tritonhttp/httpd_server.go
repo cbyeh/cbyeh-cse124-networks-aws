@@ -31,6 +31,7 @@ func (hs *HttpServer) Start() (err error) {
 	if err != nil {
 		return err
 	}
+	defer l.Close()
 
 	// Accept connection from client
 	for {

@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	// "io"
 )
 
 /*
@@ -15,83 +16,79 @@ For a connection, keep handling requests until
 */
 func (hs *HttpServer) handleConnection(conn net.Conn) {
 
-	defer conn.Close()
+	// Start a loop for reading requests continuously
+	// Set a timeout for read operation
+	// Read from the connection socket into a buffer
+	// Validate the request lines that were read
+	// Handle any complete requests
+	// Update any ongoing requests
+	// If reusing read buffer, truncate it before next read
 
-	buf := make([]byte, 10)
+	const timeout = 5 * time.Second
+	const delim = "\r\n"
 	remaining := ""
-	isFirstLine := true
 
 	var NewHttpRequestHeader HttpRequestHeader
-
-	// Start a loop for reading requests continuously
+	NewHttpRequestHeader.InitialLine = ""
+	NewHttpRequestHeader.Host = ""
+	NewHttpRequestHeader.Connection = ""
+	defer conn.Close()
+	defer log.Println("Closed connection")
 	for {
-
-		// Set a timeout for read operation
-		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-
-		// Read from the connection socket into a buffer
+		conn.SetReadDeadline(time.Now().Add(timeout))
+		buf := make([]byte, 10)
 		size, err := conn.Read(buf)
-		if err != nil {
-			log.Fatal(err)
-			conn.Close()
-			return
+		if size > 0 {
+			conn.SetReadDeadline(time.Now().Add(timeout))
 		}
-		data := buf[:size]
-		remaining += string(data)
 
-		// Validate the request lines that were read
-		for strings.Contains(remaining, "\r\n") {
-			idx := strings.Index(remaining, "\r\n")
+		if err != nil {
+			println("done")
+			break
+		}
+
+		data := buf[:size]
+		remaining = remaining + string(data)
+
+		for strings.Contains(remaining, delim) {
+			idx := strings.Index(remaining, delim)
+
 			line := remaining[:idx]
 
-			// Done with request
-			if line == "\n" {
-				// Handle any complete requests
-				if NewHttpRequestHeader.Host != "" && NewHttpRequestHeader.InitialLine != "" {
-					hs.handleResponse(&NewHttpRequestHeader, conn)
-				} else {
-					hs.handleBadRequest(conn)
-				}
-				isFirstLine = true
-				return
-			}
-
-			// Fill request header, check for errors
-			if isFirstLine == true { // Special case for initial line
-				isFirstLine = false
-				tokens := strings.Split(line, " ")
-				if line[:4] == "GET " && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" && len(tokens) == 3 {
-					NewHttpRequestHeader.InitialLine = line
-				} else {
-					hs.handleBadRequest(conn)
-					return
+			if NewHttpRequestHeader.InitialLine == "" {
+				tokens := strings.Fields(line)
+				if len(tokens) == 3 {
+					if tokens[0] == "GET" && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
+						NewHttpRequestHeader.InitialLine = line
+					}
 				}
 			} else {
-				if !strings.Contains(line, ":") {
-					hs.handleBadRequest(conn)
-					return
-				}
-				// Find colon and make sure key is all letters before colon
-				colonIdx := strings.Index(line, ":")
-				key := line[1:colonIdx]
-				if strings.Contains(key, " ") {
-					hs.handleBadRequest(conn)
-					return
-				}
+				if strings.Contains(line, ":") {
+					colonIdx := strings.Index(line, ":")
+					key := line[:colonIdx]
 
-				// Get value by trimming off spaces on the left
-				value := strings.TrimLeft(line[colonIdx+1:], " ")
-				if key == "Host" {
-					NewHttpRequestHeader.Host = value
-				} else if key == "Connection" {
-					NewHttpRequestHeader.Connection = value
+					value := strings.Fields(line[colonIdx+1:])[0]
+
+					if key == "Host" {
+						NewHttpRequestHeader.Host = value
+						println("Host: " + value)
+					} else if key == "Connection" {
+						NewHttpRequestHeader.Connection = value
+					}
 				}
 			}
-
-			// Update any ongoing requests
-			remaining = remaining[idx+1:]
-
+			remaining = remaining[idx+2:]
+			if len(remaining) >= 2 && remaining[:2] == delim {
+				remaining = remaining[2:]
+				if NewHttpRequestHeader.Host != "" && NewHttpRequestHeader.InitialLine != "" {
+					hs.handleResponse(&NewHttpRequestHeader, conn)
+					NewHttpRequestHeader.InitialLine = ""
+					NewHttpRequestHeader.Host = ""
+					NewHttpRequestHeader.Connection = ""
+				}
+			} else {
+				break
+			}
 		}
 	}
-
 }
