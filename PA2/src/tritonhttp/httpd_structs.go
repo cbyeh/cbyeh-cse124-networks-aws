@@ -8,18 +8,19 @@ type HttpServer struct {
 }
 
 type HttpResponseHeader struct {
+	InitialLine   string
 	Date          string
 	LastModified  string
 	ContentType   string
 	ContentLength string
 	Connection    string
-	InitialLine   string
 	Server        string
 	FilePath      string
 }
 
 type HttpRequestHeader struct {
-	Host        string
-	Connection  string
-	InitialLine string
+	InitialLine  string
+	Host         string
+	Connection   string
+	IsBadRequest bool
 }

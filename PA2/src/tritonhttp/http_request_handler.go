@@ -5,7 +5,6 @@ import (
 	"net"
 	"strings"
 	"time"
-	// "io"
 )
 
 /*
@@ -25,6 +24,7 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 	NewHttpRequestHeader.InitialLine = ""
 	NewHttpRequestHeader.Host = ""
 	NewHttpRequestHeader.Connection = ""
+	NewHttpRequestHeader.IsBadRequest = false
 	defer conn.Close()
 	defer log.Println("Closed connection")
 
@@ -57,12 +57,17 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 					colonIdx := strings.Index(line, ":")
 					key := line[:colonIdx]
 					value := strings.Fields(line[colonIdx+1:])[0]
+					// Check for malformed header
+					if strings.Contains(key, " ") {
+						NewHttpRequestHeader.IsBadRequest = true
+					}
 					if key == "Host" {
 						NewHttpRequestHeader.Host = value
-						println("Host: " + value)
 					} else if key == "Connection" {
 						NewHttpRequestHeader.Connection = value
 					}
+				} else {
+					NewHttpRequestHeader.IsBadRequest = true
 				}
 			}
 			// Handle any complete requests

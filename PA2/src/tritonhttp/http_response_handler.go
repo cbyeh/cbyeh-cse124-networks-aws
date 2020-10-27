@@ -32,15 +32,15 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 
-	// Check if required headers are provided
-	if requestHeader.Host == "" {
+	// Check if headers are OK
+	if requestHeader.Host == "" || requestHeader.IsBadRequest == true {
 		hs.handleBadRequest(conn)
 	}
 
 	// Check if initial line is valid. Send good response if so and file is valid
 	line := requestHeader.InitialLine
 	tokens := strings.Fields(line)
-	if line[:4] == "GET " && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
+	if line[:4] == "GET " && len(tokens) == 3 && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
 		if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
 			file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
 			if err != nil {
