@@ -18,6 +18,7 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 
 	const timeout = 5 * time.Second
 	const delim = "\r\n"
+	isFirstLine := true
 	remaining := ""
 
 	var NewHttpRequestHeader HttpRequestHeader
@@ -48,13 +49,9 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 		for strings.Contains(remaining, delim) {
 			idx := strings.Index(remaining, delim)
 			line := remaining[:idx]
-			if NewHttpRequestHeader.InitialLine == "" {
-				tokens := strings.Fields(line)
-				if len(tokens) == 3 {
-					if line[:4] == "GET " && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
-						NewHttpRequestHeader.InitialLine = line
-					}
-				}
+			if isFirstLine == true {
+				isFirstLine = false
+				NewHttpRequestHeader.InitialLine = line
 			} else {
 				if strings.Contains(line, ":") {
 					colonIdx := strings.Index(line, ":")
@@ -73,12 +70,12 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 			if len(remaining) >= 2 && remaining[:2] == delim {
 				// Update any ongoing requests
 				remaining = remaining[2:]
-				if NewHttpRequestHeader.Host != "" && NewHttpRequestHeader.InitialLine != "" {
-					hs.handleResponse(&NewHttpRequestHeader, conn)
-					NewHttpRequestHeader.InitialLine = ""
-					NewHttpRequestHeader.Host = ""
-					NewHttpRequestHeader.Connection = ""
-				}
+				// Send complete request
+				isFirstLine = true
+				hs.handleResponse(&NewHttpRequestHeader, conn)
+				NewHttpRequestHeader.InitialLine = ""
+				NewHttpRequestHeader.Host = ""
+				NewHttpRequestHeader.Connection = ""
 			} else {
 				break
 			}
