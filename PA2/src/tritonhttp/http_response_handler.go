@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -27,37 +26,27 @@ func (hs *HttpServer) handleFileNotFoundRequest(requestHeader *HttpRequestHeader
 	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
-func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.Conn) (result string) {
-
-	initialLine := requestHeader.InitialLine
-	initialLineTokens := strings.Split(initialLine, " ")
+func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.Conn) {
+	initialLineTokens := strings.Fields(requestHeader.InitialLine)
 
 	var NewHttpResponseHeader HttpResponseHeader
-
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
-	println(NewHttpResponseHeader.Server)
 
 	if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
-
 		file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
 		if err != nil {
 			hs.handleFileNotFoundRequest(requestHeader, conn)
 			return
 		}
-
 		stat, _ := file.Stat()
-
 		// Write index.html to connection
-		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
 		NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
 		NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
 		NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
-		NewHttpResponseHeader.FilePath = hs.DocRoot + "/index.html"
+		NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1] + "index.html"
 		hs.sendResponse(NewHttpResponseHeader, conn)
-		return "HTTP/1.1 200 OK"
 	}
-
 	// Else handle non-root request
 	location := hs.DocRoot + initialLineTokens[1]
 	// If not a valid mime type, bad request
@@ -67,12 +56,10 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 		// use MIME type application/octet-stream
 	}
 	file, err := os.Open(location)
-	_, err2 := filepath.Rel(hs.DocRoot, location)
-
-	if err != nil || err2 != nil {
+	if err != nil {
 		hs.handleFileNotFoundRequest(requestHeader, conn)
-		return
 	}
+
 	stat, _ := file.Stat()
 
 	file.Close()
@@ -82,10 +69,14 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
 	NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1]
 	hs.sendResponse(NewHttpResponseHeader, conn)
-	return "HTTP/1.1 200 OK"
 }
 
 func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.Conn) {
+	// Send headers
+
+	// Send file if required
+
+	// Hint - Use the bufio package to write response
 
 	// Send headers
 	w := bufio.NewWriter(conn)
@@ -111,16 +102,14 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 		buf := make([]byte, 10)
 		file, err := os.Open(responseHeader.FilePath)
 		if err != nil {
-			log.Fatal(err)
+			return
 		}
 		if responseHeader.FilePath != "" {
 			_, err := io.CopyBuffer(conn, file, buf)
 			if err != nil {
-				log.Fatal(err)
+				return
 			}
 		}
 		file.Close()
 	}
-
-	// Hint - Use the bufio package to write response
 }

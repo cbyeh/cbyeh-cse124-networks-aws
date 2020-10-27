@@ -16,14 +16,6 @@ For a connection, keep handling requests until
 */
 func (hs *HttpServer) handleConnection(conn net.Conn) {
 
-	// Start a loop for reading requests continuously
-	// Set a timeout for read operation
-	// Read from the connection socket into a buffer
-	// Validate the request lines that were read
-	// Handle any complete requests
-	// Update any ongoing requests
-	// If reusing read buffer, truncate it before next read
-
 	const timeout = 5 * time.Second
 	const delim = "\r\n"
 	remaining := ""
@@ -34,27 +26,27 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 	NewHttpRequestHeader.Connection = ""
 	defer conn.Close()
 	defer log.Println("Closed connection")
+	// Start a loop for reading requests continuously
 	for {
+		// Set a timeout for read operation
 		conn.SetReadDeadline(time.Now().Add(timeout))
 		buf := make([]byte, 10)
 		size, err := conn.Read(buf)
+		if err != nil {
+			break
+		}
 		if size > 0 {
 			conn.SetReadDeadline(time.Now().Add(timeout))
 		}
-
-		if err != nil {
-			println("done")
-			break
-		}
-
+		// Read from the connection socket into a buffer
 		data := buf[:size]
 		remaining = remaining + string(data)
 
+		// Validate the request lines that were read
 		for strings.Contains(remaining, delim) {
 			idx := strings.Index(remaining, delim)
-
 			line := remaining[:idx]
-
+			// Handle any complete requests
 			if NewHttpRequestHeader.InitialLine == "" {
 				tokens := strings.Fields(line)
 				if len(tokens) == 3 {
@@ -77,6 +69,7 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 					}
 				}
 			}
+			// Update any ongoing requests
 			remaining = remaining[idx+2:]
 			if len(remaining) >= 2 && remaining[:2] == delim {
 				remaining = remaining[2:]
