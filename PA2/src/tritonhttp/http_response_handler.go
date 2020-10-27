@@ -32,52 +32,59 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
 
-	if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
-		file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
+	// Check if required headers are provided
+	if requestHeader.Host == "" {
+		hs.handleBadRequest(conn)
+	}
+
+	// Check if initial line is valid. Send good response if so and file is valid
+	line := requestHeader.InitialLine
+	tokens := strings.Fields(line)
+	if line[:4] == "GET " && tokens[1][:1] == "/" && tokens[2] == "HTTP/1.1" {
+		if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
+			file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
+			if err != nil {
+				hs.handleFileNotFoundRequest(requestHeader, conn)
+				return
+			}
+
+			stat, _ := file.Stat()
+			// Write index.html to connection
+			NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
+			NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
+			NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
+			NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
+			NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1] + "index.html"
+			hs.sendResponse(NewHttpResponseHeader, conn)
+		}
+		// Else handle non-root request
+		location := hs.DocRoot + initialLineTokens[1]
+		// If not a valid mime type, bad request
+		extension := filepath.Ext(location)
+		_, ok := hs.MIMEMap[extension]
+		if !ok {
+			// use MIME type application/octet-stream
+		}
+		file, err := os.Open(location)
 		if err != nil {
 			hs.handleFileNotFoundRequest(requestHeader, conn)
-			return
 		}
+
 		stat, _ := file.Stat()
-		// Write index.html to connection
+
+		file.Close()
 		NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
 		NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
-		NewHttpResponseHeader.ContentType = hs.MIMEMap[".html"] + "\r\n"
+		NewHttpResponseHeader.ContentType = hs.MIMEMap[extension] + "\r\n"
 		NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
-		NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1] + "index.html"
+		NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1]
 		hs.sendResponse(NewHttpResponseHeader, conn)
+	} else {
+		hs.handleBadRequest(conn)
 	}
-	// Else handle non-root request
-	location := hs.DocRoot + initialLineTokens[1]
-	// If not a valid mime type, bad request
-	extension := filepath.Ext(location)
-	_, ok := hs.MIMEMap[extension]
-	if !ok {
-		// use MIME type application/octet-stream
-	}
-	file, err := os.Open(location)
-	if err != nil {
-		hs.handleFileNotFoundRequest(requestHeader, conn)
-	}
-
-	stat, _ := file.Stat()
-
-	file.Close()
-	NewHttpResponseHeader.InitialLine = "HTTP/1.1 200 OK\r\n"
-	NewHttpResponseHeader.LastModified = fmt.Sprintf("%s\r\n", stat.ModTime().Format(time.RFC1123Z))
-	NewHttpResponseHeader.ContentType = hs.MIMEMap[extension] + "\r\n"
-	NewHttpResponseHeader.ContentLength = strconv.Itoa(int(stat.Size())) + "\r\n"
-	NewHttpResponseHeader.FilePath = hs.DocRoot + initialLineTokens[1]
-	hs.sendResponse(NewHttpResponseHeader, conn)
 }
 
 func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.Conn) {
-	// Send headers
-
-	// Send file if required
-
-	// Hint - Use the bufio package to write response
-
 	// Send headers
 	w := bufio.NewWriter(conn)
 	response := ""
