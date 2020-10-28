@@ -32,13 +32,15 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 	// Start a loop for reading requests continuously
 	for {
 
-		// Set a timeout for read operation
-		conn.SetReadDeadline(time.Now().Add(timeout))
-		buf := make([]byte, 10)
+		// Set a timeout for read operation and read from connection
+		t := make(chan string)
+		go func() {
+			time.Sleep(timeout)
+			t <- "Timed out"
+		}()
+		buf := make([]byte, 1024)
 		size, err := conn.Read(buf)
-		if size > 0 {
-			conn.SetReadDeadline(time.Now().Add(timeout))
-		}
+		conn.SetReadDeadline(time.Now().Add(timeout))
 		if err != nil {
 			conn.Close()
 			return
@@ -98,8 +100,14 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 				NewHttpRequestHeader.Host = ""
 				NewHttpRequestHeader.Connection = ""
 				NewHttpRequestHeader.IsBadRequest = false
-			} else if line == "\n" {
-				hs.handleResponse(&NewHttpRequestHeader, conn)
+			} else {
+				select { // Timed out
+				case msg := <-t:
+					log.Println(msg)
+					NewHttpRequestHeader.IsPartialRequest = true
+					hs.handleResponse(&NewHttpRequestHeader, conn)
+					conn.Close()
+				}
 			}
 		}
 	}

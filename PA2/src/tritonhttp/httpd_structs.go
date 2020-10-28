@@ -19,8 +19,9 @@ type HttpResponseHeader struct {
 }
 
 type HttpRequestHeader struct {
-	InitialLine  string
-	Host         string
-	Connection   string
-	IsBadRequest bool
+	InitialLine      string
+	Host             string
+	Connection       string
+	IsBadRequest     bool
+	IsPartialRequest bool
 }

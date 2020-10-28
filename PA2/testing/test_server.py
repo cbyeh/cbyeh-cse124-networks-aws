@@ -5,7 +5,7 @@ s = socket()
 s.connect(("localhost", 8080))
 
 # Compose the message/HTTP request we want to send to the server
-msgPart1 = b"GET /subdir1/6788.wasting.jpeg HTTP/1.1\r\nHost: Ha\r\n\r\n"
+msgPart1 = b"GET / HTTP/1.1\r\nHost: Ha\r\n\r\n"
 
 # Send out the request
 s.sendall(msgPart1)

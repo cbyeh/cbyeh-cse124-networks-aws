@@ -33,7 +33,7 @@ func (hs *HttpServer) handleFileNotFoundRequest(conn net.Conn) {
 func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.Conn) {
 
 	// Check if headers are OK
-	if requestHeader.Host == "" || requestHeader.IsBadRequest == true {
+	if requestHeader.Host == "" || requestHeader.IsBadRequest == true || requestHeader.IsPartialRequest == true {
 		hs.handleBadRequest(conn)
 		return
 	}
@@ -124,7 +124,7 @@ func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.C
 
 	if tokens[1] == "200" {
 		// Send file if required
-		buf := make([]byte, 10)
+		buf := make([]byte, 1024)
 		file, err := os.Open(responseHeader.FilePath)
 		if err != nil {
 			return
