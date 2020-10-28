@@ -5,7 +5,6 @@ import (
 	"net"
 	"strings"
 	"time"
-	"unicode"
 )
 
 /*
@@ -59,14 +58,18 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 				}
 				colonIdx := strings.Index(line, ":")
 				key := line[:colonIdx]
-				value := strings.Fields(line[colonIdx+1:])[0]
-				// Check for malformed header
-				for _, c := range key {
-					if !unicode.IsLetter(c) {
-						NewHttpRequestHeader.IsBadRequest = true
+				var valueIdx int
+				for i := colonIdx + 1; i < len(line); i++ {
+					if line[i] != ' ' {
+						valueIdx = i
 						break
 					}
 				}
+				value := line[valueIdx:]
+				println(key)
+				println(value)
+				// Check for malformed header
+				// TODO:
 				if key == "Host" {
 					NewHttpRequestHeader.Host = value
 				} else if key == "Connection" {
