@@ -25,23 +25,24 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 	NewHttpRequestHeader.Host = ""
 	NewHttpRequestHeader.Connection = ""
 	NewHttpRequestHeader.IsBadRequest = false
+	NewHttpRequestHeader.IsPartialRequest = false
 
-	defer conn.Close()
 	defer log.Println("Closed connection")
 
 	// Start a loop for reading requests continuously
 	for {
 
 		// Set a timeout for read operation and read from connection
-		t := make(chan string)
-		go func() {
-			time.Sleep(timeout)
-			t <- "Timed out"
-		}()
 		buf := make([]byte, 1024)
 		size, err := conn.Read(buf)
-		conn.SetReadDeadline(time.Now().Add(timeout))
-		if err != nil {
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			NewHttpRequestHeader.IsPartialRequest = true
+			hs.handleResponse(&NewHttpRequestHeader, conn)
+			break
+		}
+		if size > 0 {
+			conn.SetReadDeadline(time.Now().Add(timeout))
+		} else {
 			conn.Close()
 			return
 		}
@@ -95,19 +96,12 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 					conn.Close()
 					return
 				}
+				// msg := <-t:
 				isFirstLine = true
 				NewHttpRequestHeader.InitialLine = ""
 				NewHttpRequestHeader.Host = ""
 				NewHttpRequestHeader.Connection = ""
 				NewHttpRequestHeader.IsBadRequest = false
-			} else {
-				select { // Timed out
-				case msg := <-t:
-					log.Println(msg)
-					NewHttpRequestHeader.IsPartialRequest = true
-					hs.handleResponse(&NewHttpRequestHeader, conn)
-					conn.Close()
-				}
 			}
 		}
 	}
