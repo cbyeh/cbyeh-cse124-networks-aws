@@ -40,6 +40,7 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 			conn.SetReadDeadline(time.Now().Add(timeout))
 		}
 		if err != nil {
+			conn.Close()
 			return
 		}
 
@@ -82,21 +83,23 @@ func (hs *HttpServer) handleConnection(conn net.Conn) {
 			// Handle any complete requests
 			remaining = remaining[idx+2:]
 			// Finished reading request
+			log.Println("Finished reading request")
 			if len(remaining) >= 2 && remaining[:2] == delim {
 				// Update any ongoing requests
 				remaining = remaining[2:]
 				// Send complete request
 				hs.handleResponse(&NewHttpRequestHeader, conn)
+				if NewHttpRequestHeader.Connection == "close" {
+					conn.Close()
+					return
+				}
 				isFirstLine = true
 				NewHttpRequestHeader.InitialLine = ""
 				NewHttpRequestHeader.Host = ""
 				NewHttpRequestHeader.Connection = ""
 				NewHttpRequestHeader.IsBadRequest = false
-				if NewHttpRequestHeader.Connection == "close" {
-					conn.Close()
-				}
-			} else {
-				break
+			} else if line == "\n" {
+				hs.handleResponse(&NewHttpRequestHeader, conn)
 			}
 		}
 	}

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 )
 
 func (hs *HttpServer) handleBadRequest(conn net.Conn) {
+	log.Println("Handled bad request")
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 400 Bad Request\r\n"
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
@@ -21,6 +23,7 @@ func (hs *HttpServer) handleBadRequest(conn net.Conn) {
 }
 
 func (hs *HttpServer) handleFileNotFoundRequest(conn net.Conn) {
+	log.Println("Handled file not found request")
 	var NewHttpResponseHeader HttpResponseHeader
 	NewHttpResponseHeader.InitialLine = "HTTP/1.1 404 Not Found\r\n"
 	NewHttpResponseHeader.Server = "Go-Triton-Server-1.0\r\n"
@@ -54,6 +57,7 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 	}
 
 	// Else valid initial line and requesting root page
+	log.Println("Valid initial line")
 	if initialLineTokens[1][len(initialLineTokens[1])-1:] == "/" { // If last character is "/"
 		file, err := os.Open(hs.DocRoot + initialLineTokens[1] + "index.html")
 		if err != nil {
@@ -98,6 +102,7 @@ func (hs *HttpServer) handleResponse(requestHeader *HttpRequestHeader, conn net.
 }
 
 func (hs *HttpServer) sendResponse(responseHeader HttpResponseHeader, conn net.Conn) {
+	log.Println("Sending response")
 	// Send headers
 	w := bufio.NewWriter(conn)
 	response := ""
