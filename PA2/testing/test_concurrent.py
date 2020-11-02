@@ -7,14 +7,15 @@ s1.connect(("localhost", 8080))
 s2.connect(("localhost", 8080))
 
 # Compose test for root
-msgPart1 = b"GET / HTTP/1.1\r\nHost: Ha\r\n\r\n"
+msg = b"GET / HTTP/1.1\r\nHost: Ha\r\n\r\n"
 
 # Send out the request
-s1.sendall(msgPart1)
-s2.sendall(msgPart1)
+s1.sendall(msg)
+s2.sendall(msg)
 
 # Listen for response and print it out
-print (s1.recv(4096))
-print (s2.recv(4096))
+print(s1.recv(4096))
+print(s2.recv(4096))
 
-s.close()
+s1.close()
+s2.close()

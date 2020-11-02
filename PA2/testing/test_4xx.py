@@ -11,7 +11,7 @@ msgPart1 = b"GET /doesnotexist.png \r\nHost: Ha\r\n\r\n"
 s.sendall(msgPart1)
 
 # Listen for response and print it out
-print (s.recv(4096))
+print(s.recv(4096))
 
 """"""
 
@@ -25,7 +25,7 @@ msgPart2 = b"GET /../secret.pem HTTP/1.1\r\nHost: Ha\r\n\r\n"
 s.sendall(msgPart2)
 
 # Listen for response and print it out
-print (s.recv(4096))
+print(s.recv(4096))
 
 """"""
 
@@ -39,21 +39,21 @@ msgPart3 = b"GET /kitten.jpg HTEEP/1.1\r\nHost: Ha\r\n\r\n"
 s.sendall(msgPart3)
 
 # Listen for response and print it out
-print (s.recv(4096))
+print(s.recv(4096))
 
 """"""
 
 s = socket()
 s.connect(("localhost", 8080))
 
-# Compose test for malformed header 400 GETT
-msgPart4 = b"GETT /kitten.jpg HTTP/1.1\r\nHost: Ha\r\n\r\n"
+# Compose test for malformed header 400 GETTT
+msgPart4 = b"GETTT /kitten.jpg HTTP/1.1\r\nHost: Ha\r\n\r\n"
 
 # Send out the request
 s.sendall(msgPart4)
 
 # Listen for response and print it out
-print (s.recv(4096))
+print(s.recv(4096))
 
 """"""
 
@@ -67,6 +67,38 @@ msgPart5 = b"GET kitten.jpg HTTP/1.1\r\nHost: Ha\r\n\r\n"
 s.sendall(msgPart5)
 
 # Listen for response and print it out
-print (s.recv(4096))
+print(s.recv(4096))
+
+s.close()
+
+""""""
+
+s = socket()
+s.connect(("localhost", 8080))
+
+# Compose test for 400 extra arguments
+msgPart6 = b"GET /kitten.jpg HTTP/1.1 extrah\r\nHost: Ha\r\n\r\n"
+
+# Send out the request
+s.sendall(msgPart6)
+
+# Listen for response and print it out
+print(s.recv(4096))
+
+s.close()
+
+""""""
+
+s = socket()
+s.connect(("localhost", 8080))
+
+# Compose test for 400 empty request
+msgPart7 = b""
+
+# Send out the request
+s.sendall(msgPart7)
+
+# Listen for response and print it out
+print(s.recv(4096))
 
 s.close()
