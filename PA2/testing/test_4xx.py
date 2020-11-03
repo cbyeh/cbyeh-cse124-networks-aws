@@ -92,11 +92,27 @@ s.close()
 s = socket()
 s.connect(("localhost", 8080))
 
-# Compose test for 400 empty request
-msgPart7 = b""
+# Compose test for 400 too few arguments
+msgPart7 = b"GET /kitten.jpg\r\nHost: Ha\r\n\r\n"
 
 # Send out the request
 s.sendall(msgPart7)
+
+# Listen for response and print it out
+print(s.recv(4096))
+
+s.close()
+
+""""""
+
+s = socket()
+s.connect(("localhost", 8080))
+
+# Compose test for 400 empty request
+msgPart8 = b""
+
+# Send out the request
+s.sendall(msgPart8)
 
 # Listen for response and print it out
 print(s.recv(4096))

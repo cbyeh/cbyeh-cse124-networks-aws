@@ -30,7 +30,7 @@ s = socket()
 s.connect(("localhost", 8080))
 
 # Compose for two good consecutive requests
-msgConsecutive = b"GET / HTTP/1.1\r\nHost: Ha\r\nGET /subdir1/index.html HTTP/1.1\r\nHost: Ha\r\n\r\n"
+msgConsecutive = b"GET / HTTP/1.1\r\nHost: Ha\r\n\r\nGET /subdir1/index.html HTTP/1.1\r\nHost: Ha\r\n\r\n"
 
 # Send out the request
 s.sendall(msgConsecutive)
