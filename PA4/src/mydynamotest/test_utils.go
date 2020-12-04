@@ -34,7 +34,7 @@ func KillDynamoServer(server *exec.Cmd) {
 }
 
 // Creates a client that connects to the given port
-//A client instance returned by this function is ready to use
+// A client instance returned by this function is ready to use
 func MakeConnectedClient(port int) *mydynamo.RPCClient {
 	clientInstance := mydynamo.NewDynamoRPCClient("localhost:" + strconv.Itoa(port))
 	clientInstance.RpcConnect()
@@ -42,7 +42,7 @@ func MakeConnectedClient(port int) *mydynamo.RPCClient {
 }
 
 // Creates a PutArgs with the associated key and value, but a Context corresponding
-//to a new VectorClock
+// to a new VectorClock
 func PutFreshContext(key string, value []byte) mydynamo.PutArgs {
 	return mydynamo.NewPutArgs(key, mydynamo.NewContext(mydynamo.NewVectorClock()), value)
 }
