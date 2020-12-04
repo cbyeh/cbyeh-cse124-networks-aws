@@ -1,0 +1,19 @@
+// Checks if page is dashboard
+$(document).ready(function(){
+	if (window.location.pathname=='/') {
+		$('#DashboardCard_Container').before('<div><p>Additional courses, including those from previous quarters, may be found on your <a href="/courses">All Courses</a> page.</p></div>');
+	}});
+
+//Remove Conferences from Settings' Navigation Pane
+$(document).ready(function(){
+$('li[aria-label="Conferences"]').hide();});
+
+//Hide Canvas's Course Start Checklist
+$(document).ready(function(){
+
+	// Check if page is course homepage
+	if (/^\/courses\/[0-9]+$/.test(window.location.pathname)) {
+			// Disables the Canvas Course Checklist button
+			$('div.course-options a.btn.button-sidebar-wide.wizard_popup_link').remove();}
+
+});
