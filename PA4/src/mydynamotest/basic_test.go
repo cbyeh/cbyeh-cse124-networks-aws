@@ -18,7 +18,7 @@ func TestBasicPut(t *testing.T) {
 	defer KillDynamoServer(cmd)
 
 	// Wait for the nodes to finish spinning up.
-	time.Sleep(3 * time.Second)
+	time.Sleep(8 * time.Second)
 	<-ready
 
 	// Create a client that connects to the first server

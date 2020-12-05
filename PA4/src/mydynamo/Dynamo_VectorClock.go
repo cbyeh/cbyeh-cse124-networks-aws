@@ -80,7 +80,7 @@ func (s *VectorClock) Combine(clocks []VectorClock) {
 
 // Tests if two VectorClocks are equal
 func (s VectorClock) Equals(otherClock VectorClock) bool {
-	// V(a) = V(b) when a_k = b_k for all k
+	// V(a) = V(b) when a_k == b_k for all k
 	for i := 0; i < 5; i++ {
 		if s.pairArray[i].clockNumber != otherClock.pairArray[i].clockNumber {
 			return false

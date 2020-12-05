@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/go-ini/ini"
 )
@@ -84,6 +85,7 @@ func main() {
 		if err != nil {
 			log.Println("Failed to send preference list")
 		} else {
+			time.Sleep(5 * time.Second)
 			err2 := c.Call("MyDynamo.SendPreferenceList", nodePreferenceList, &empty)
 			if err2 != nil {
 				log.Println("Failed to send preference list")
