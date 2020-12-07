@@ -79,13 +79,13 @@ func main() {
 	nodePreferenceList := dynamoNodeList
 
 	// Send the preference list to all servers
+	time.Sleep(2 * time.Second)
 	for _, info := range dynamoNodeList {
 		var empty mydynamo.Empty
 		c, _ := rpc.DialHTTP("tcp", info.Address+":"+info.Port)
 		if err != nil {
 			log.Println("Failed to send preference list")
 		} else {
-			time.Sleep(5 * time.Second)
 			err2 := c.Call("MyDynamo.SendPreferenceList", nodePreferenceList, &empty)
 			if err2 != nil {
 				log.Println("Failed to send preference list")

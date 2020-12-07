@@ -1,6 +1,7 @@
 package mydynamo
 
 import (
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -32,18 +33,49 @@ func (s *DynamoServer) Gossip(_ Empty, _ *Empty) error {
 
 // Makes server unavailable for some seconds
 func (s *DynamoServer) Crash(seconds int, success *bool) error {
+	// If already crashed, return error
+	if s.isCrashed {
+		return errors.New("Error in Crash: Server is already crashed")
+	}
 	s.isCrashed = true
 	go time.Sleep(time.Duration(seconds) * time.Second)
 	s.isCrashed = false
 	return nil
 }
 
+// Puts a value to the server
+func (s *DynamoServer) RemotePut(value *PutArgs, result *bool) error {
+	if s.isCrashed {
+		*result = false
+		return errors.New("Error in RemotePut: Server is crashed")
+	}
+	// _, ok := s.data[value.Key]
+	// // If exists on DynamoServer, check if newContext < Context
+	// if ok {
+	// 	if value.Context.Clock.LessThan(s.data[value.Key].Context.Clock) {
+	// 		*result = false
+	// 		return nil
+	// 	}
+	// }
+	// Put on this DynamoNode
+	s.data[value.Key] = ObjectEntry{value.Context, value.Value}
+	*result = true
+	return nil
+}
+
 // Put a file to this server and W other servers
 func (s *DynamoServer) Put(value PutArgs, result *bool) error {
-	// Check if newContext < oldContext, if so, keep the existing value
-	if value.Context.Clock.LessThan(s.data[value.Key].Context.Clock) {
+	if s.isCrashed {
 		*result = false
-		return nil
+		return errors.New("Error in Put: Server is crashed")
+	}
+	// Check if newContext < oldContext, if so, keep the existing value
+	_, ok := s.data[value.Key]
+	if ok {
+		if value.Context.Clock.LessThan(s.data[value.Key].Context.Clock) {
+			*result = false
+			return nil
+		}
 	}
 	// Put on this server
 	newObjectEntry := ObjectEntry{
@@ -51,45 +83,60 @@ func (s *DynamoServer) Put(value PutArgs, result *bool) error {
 		Value:   value.Value,
 	}
 	s.data[value.Key] = newObjectEntry
-	// Replicate on the top W nodes, TODO: Maybe try just for W = 1
-	for i := 0; i < s.wValue; i++ {
-		// node := s.preferenceList[i]
-		// Connect and see if available
-		// conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
-		// if e != nil {
-		// 	*result = false
-		// 	return e
-		// }
-		// e = conn.Call("Server.GetBlock", blockHash, block)
-		// // TODO:
-		// If not, add to not replicated list
-	}
-	// Increment vector clock element
-	// value.Context.Clock.pairArray[value.Key]++
-	// Store all nodes that weren't replicated
 	*result = true
+	// Increment vector clock element for local server
+	value.Context.Clock.Increment(value.Key)
+	// Replicate on the top W nodes
+	for i := 0; i < s.wValue - 1 && i < len(s.preferenceList); i++ {
+		node := s.preferenceList[i]
+		// Connect and see if available
+		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
+		var res bool
+		e = conn.Call("MyDynamo.RemotePut", &value, &res)
+		// If not, add to not replicated list
+		if e != nil || !res {
+			s.notWrittenList = append(s.notWrittenList, node)
+		}
+	}
+	// return err
+	return nil
+}
+
+// Get a file from this server
+func (s *DynamoServer) RemoteGet(key string, entry *ObjectEntry) error {
+	if s.isCrashed {
+		return errors.New("Error in RemoteGet: Server is crashed")
+	}
+	// Check for causaulity, TODO:
+	if _, ok := s.data[key]; ok {
+		*entry = s.data[key]
+	} else {
+		return errors.New("Error in RemoteGet: Entry not found")
+	}
 	return nil
 }
 
 // Get a file from this server, matched with R other servers
 func (s *DynamoServer) Get(key string, result *DynamoResult) error {
-	// First check local
-	if val, ok := s.data[key]; ok {
-		newObjectEntry := ObjectEntry{
-			Context: val.Context,
-			Value:   val.Value,
-		}
-		result.EntryList = append(result.EntryList, newObjectEntry)
+	if s.isCrashed {
+		return errors.New("Error in Get: Server is crashed")
 	}
-	// TODO: Maybe try just for R = 1
-	for i := 0; i < s.rValue; i++ {
+	// First check local
+	if _, ok := s.data[key]; ok {
+		result.EntryList = append(result.EntryList, s.data[key])
+	}
+	for i := 0; i < s.rValue - 1 && i < len(s.preferenceList); i++ {
 		node := s.preferenceList[i]
 		// Connect
 		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
 		if e != nil {
 			return e
 		}
-		println(conn)
+		var res ObjectEntry
+		e = conn.Call("MyDynamo.RemoteGet", key, &res)
+		if e != nil {
+			result.EntryList = append(result.EntryList, res)
+		}
 	}
 	return nil
 }
@@ -108,6 +155,8 @@ func NewDynamoServer(w int, r int, hostAddr string, hostPort string, id string) 
 		selfNode:       selfNodeInfo,
 		nodeID:         id,
 		isCrashed:      false,
+		data:           make(map[string]ObjectEntry),
+		notWrittenList: make([]DynamoNode, 0),
 	}
 }
 
