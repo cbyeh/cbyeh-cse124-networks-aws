@@ -25,10 +25,34 @@ func (s *DynamoServer) SendPreferenceList(incomingList []DynamoNode, _ *Empty) e
 	return nil
 }
 
-// Forces server to gossip
-// As this method takes no arguments, we must use the Empty placeholder
+// Copies store from calling node to this node
+func (s *DynamoServer) RemoteGossip(store map[string]ObjectEntry, _ *Empty) error {
+	if s.isCrashed {
+		return errors.New("Error in RemoteGossip: Server is crashed")
+	}
+	for k, v := range store {
+		// Just replace old one if already exists
+		s.data[k] = v
+	}
+	return nil
+}
+
+// Forces server to gossip. As this method takes no arguments, we must use the Empty placeholder
 func (s *DynamoServer) Gossip(_ Empty, _ *Empty) error {
-	panic("todo")
+	if s.isCrashed {
+		return errors.New("Error in Gossip: Server is crashed")
+	}
+	for i := 0; i < len(s.preferenceList); i++ {
+		node := s.preferenceList[i]
+		// If it is itself, skip
+		if s.selfNode.Address == node.Address && s.selfNode.Port == node.Port {
+			continue
+		}
+		// Connect and see if available
+		conn, _ := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
+		conn.Call("MyDynamo.RemoteGossip", s.data, nil)
+	}
+	return nil
 }
 
 // Makes server unavailable for some seconds
@@ -44,7 +68,8 @@ func (s *DynamoServer) Crash(seconds int, success *bool) error {
 }
 
 // Puts a value to the server
-func (s *DynamoServer) RemotePut(value *PutArgs, result *bool) error {
+func (s *DynamoServer) RemotePut(value PutArgs, result *bool) error {
+	log.Println("In remote put")
 	if s.isCrashed {
 		*result = false
 		return errors.New("Error in RemotePut: Server is crashed")
@@ -65,45 +90,47 @@ func (s *DynamoServer) RemotePut(value *PutArgs, result *bool) error {
 
 // Put a file to this server and W other servers
 func (s *DynamoServer) Put(value PutArgs, result *bool) error {
+	log.Println("In Put")
 	if s.isCrashed {
+		log.Println("In Put Crash")
 		*result = false
 		return errors.New("Error in Put: Server is crashed")
 	}
 	// Check if newContext < oldContext, if so, keep the existing value
-	_, ok := s.data[value.Key]
+	obj, ok := s.data[value.Key]
 	if ok {
-		if value.Context.Clock.LessThan(s.data[value.Key].Context.Clock) {
+		log.Println("In Put OK")
+		if value.Context.Clock.LessThan(obj.Context.Clock) {
+			log.Println("In Put LessThan")
 			*result = false
 			return nil
 		}
 	}
 	// Put on this server
-	newObjectEntry := ObjectEntry{
-		Context: value.Context,
-		Value:   value.Value,
-	}
-	s.data[value.Key] = newObjectEntry
+	s.data[value.Key] = ObjectEntry{value.Context, value.Value}
+	log.Println(s.data[value.Key])
 	*result = true
 	// Increment vector clock element for local server
 	value.Context.Clock.Increment(value.Key)
 	// Replicate on the top W nodes
-	for i := 0; i < s.wValue - 1 && i < len(s.preferenceList); i++ {
+	for i := 0; i < s.wValue-1 && i < len(s.preferenceList); i++ {
 		node := s.preferenceList[i]
+		// If a node sees itself on the preference list, it should be ignored TODO:
 		// Connect and see if available
 		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
 		var res bool
-		e = conn.Call("MyDynamo.RemotePut", &value, &res)
+		e = conn.Call("MyDynamo.RemotePut", value, &res)
 		// If not, add to not replicated list
 		if e != nil || !res {
 			s.notWrittenList = append(s.notWrittenList, node)
 		}
 	}
-	// return err
 	return nil
 }
 
 // Get a file from this server
 func (s *DynamoServer) RemoteGet(key string, entry *ObjectEntry) error {
+	log.Println("In remote get")
 	if s.isCrashed {
 		return errors.New("Error in RemoteGet: Server is crashed")
 	}
@@ -118,14 +145,17 @@ func (s *DynamoServer) RemoteGet(key string, entry *ObjectEntry) error {
 
 // Get a file from this server, matched with R other servers
 func (s *DynamoServer) Get(key string, result *DynamoResult) error {
+	log.Println("In get")
 	if s.isCrashed {
+		log.Println("In get crash")
 		return errors.New("Error in Get: Server is crashed")
 	}
 	// First check local
 	if _, ok := s.data[key]; ok {
+		log.Println("In get ok")
 		result.EntryList = append(result.EntryList, s.data[key])
 	}
-	for i := 0; i < s.rValue - 1 && i < len(s.preferenceList); i++ {
+	for i := 0; i < s.rValue-1 && i < len(s.preferenceList); i++ {
 		node := s.preferenceList[i]
 		// Connect
 		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
