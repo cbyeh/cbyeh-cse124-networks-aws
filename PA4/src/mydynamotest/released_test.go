@@ -4,6 +4,7 @@ import (
     "mydynamo"
     "testing"
     "time"
+    "log"
 )
 
 func TestPutW2(t *testing.T){
@@ -210,6 +211,7 @@ func TestInvalidPut(t *testing.T){
     clientInstance.Put(PutFreshContext("s1", []byte("abcde")))
     clientInstance.Put(PutFreshContext("s1", []byte("efghi")))
     gotValue := clientInstance.Get("s1")
+    log.Println(string(gotValue.EntryList[0].Value))
     if(len(gotValue.EntryList) != 1 || !valuesEqual(gotValue.EntryList[0].Value, []byte("abcde"))){
         t.Fail()
         t.Logf("TestInvalidPut: Got wrong value")
