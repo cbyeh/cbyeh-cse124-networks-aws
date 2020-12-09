@@ -16,24 +16,30 @@ type DynamoServer struct {
 	selfNode       DynamoNode             // This node's address and port info
 	nodeID         string                 // ID of this node
 	isCrashed      bool                   // If Crash() was called, emulate as if a node crashed
-	data           map[string]ObjectEntry // Key value store
+	data           map[string][]ObjectEntry // Key value store
 	notWrittenList []DynamoNode           // All nodes that haven't been replicated
 }
 
 func (s *DynamoServer) SendPreferenceList(incomingList []DynamoNode, _ *Empty) error {
+	if s.isCrashed {
+		return errors.New("Error in SendPreferenceList: Server is crashed")
+	}
 	s.preferenceList = incomingList
 	return nil
 }
 
 // Copies store from calling node to this node
-func (s *DynamoServer) RemoteGossip(store map[string]ObjectEntry, _ *Empty) error {
+func (s* DynamoServer) RemoteGossip(store map[string][]ObjectEntry, result *bool) error {
 	if s.isCrashed {
 		return errors.New("Error in RemoteGossip: Server is crashed")
 	}
-	for k, v := range store {
-		// Just replace old one if already exists
-		s.data[k] = v
+	for k, objEntryList := range store {
+		for _, objEntry := range objEntryList {
+			value := NewPutArgs(k, objEntry.Context, objEntry.Value)
+			s.PutHelper(value, nil)
+		} 
 	}
+	*result = true
 	return nil
 }
 
@@ -44,15 +50,24 @@ func (s *DynamoServer) Gossip(_ Empty, _ *Empty) error {
 	}
 	for i := 0; i < len(s.preferenceList); i++ {
 		node := s.preferenceList[i]
-		// If it is itself, skip
-		if s.selfNode == node {
+		if node == s.selfNode {
 			continue
 		}
-		// Connect and see if available
-		conn, _ := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
-		conn.Call("MyDynamo.RemoteGossip", s.data, nil)
+		// Connect to DynamoServer
+		conn, e := rpc.DialHTTP("tcp", node.Address + ":" + node.Port)
+		if e != nil {
+			continue
+		}
+		var res bool
+		// Perform call
+		e = conn.Call("MyDynamo.RemoteGossip", s.data, &res)
+		if e != nil {
+			return e
+		}
 	}
+
 	return nil
+
 }
 
 // Makes server unavailable for some seconds
@@ -68,42 +83,52 @@ func (s *DynamoServer) Crash(seconds int, success *bool) error {
 }
 
 // Puts a value to the server
-func (s *DynamoServer) RemotePut(value PutArgs, result *bool) error {
+func (s *DynamoServer) PutHelper(value PutArgs, _ *Empty) error {
 	if s.isCrashed {
-		*result = false
-		return errors.New("Error in RemotePut: Server is crashed")
+		return errors.New("Error in PutHelper: Server is crashed")
 	}
-	_, ok := s.data[value.Key]
+	objList, ok := s.data[value.Key]
+	hasConcurrent := false
+	causallyDescended := false
+	newEntryList := make([]ObjectEntry, 0)
 	// If exists on DynamoServer, check if newContext < Context
 	if ok {
-		if value.Context.Clock.LessThan(s.data[value.Key].Context.Clock) {
-			*result = false
-			return nil
+		for i := 0; i < len(objList); i++ {
+			objEntry := objList[i]
+			// Check for Equals
+			if value.Context.Clock.Equals(objEntry.Context.Clock) {
+				hasConcurrent = true
+				break
+			} else if value.Context.Clock.LessThan(objEntry.Context.Clock) {
+				// append to possible new entry list
+				newEntryList = append(newEntryList, objEntry)
+			} else if objEntry.Context.Clock.LessThan(value.Context.Clock) {
+				// At least one entry is causually descended by new value, don't add
+				causallyDescended = true
+			}
 		}
+	} else {
+		causallyDescended = true
 	}
-	// Put on this DynamoNode
-	s.data[value.Key] = ObjectEntry{value.Context, value.Value}
-	*result = true
+	if !hasConcurrent && causallyDescended {
+		newEntryList = append(newEntryList, ObjectEntry{value.Context, value.Value})
+		s.data[value.Key] = newEntryList
+	}
 	return nil
 }
 
 // Put a file to this server and W other servers
 func (s *DynamoServer) Put(value PutArgs, result *bool) error {
+	*result = false
 	if s.isCrashed {
-		*result = false
 		return errors.New("Error in Put: Server is crashed")
 	}
-	// Check if newContext < oldContext, if so, keep the existing value
-	obj, ok := s.data[value.Key]
-	if ok {
-		if value.Context.Clock.LessThan(obj.Context.Clock) {
-			*result = false
-			return nil
-		}
+	// First put locally
+	conn, e := rpc.DialHTTP("tcp", s.selfNode.Address+":"+s.selfNode.Port)
+	if e != nil {
+		return e
 	}
-	// Put on this server
-	s.data[value.Key] = ObjectEntry{value.Context, value.Value}
-	*result = true
+	e = conn.Call("MyDynamo.PutHelper", value, nil)
 	// Increment vector clock element for local server
 	value.Context.Clock.Increment(value.Key)
 	success := 1
@@ -116,28 +141,29 @@ func (s *DynamoServer) Put(value PutArgs, result *bool) error {
 		}
 		// Connect and see if available
 		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
-		var res bool
-		e = conn.Call("MyDynamo.RemotePut", value, &res)
+		e = conn.Call("MyDynamo.PutHelper", value, nil)
 		// If not, add to not replicated list
-		if e != nil || !res {
+		if e != nil {
 			s.notWrittenList = append(s.notWrittenList, node)
 		} else {
 			success++
 		}
 	}
+	if success == s.wValue {
+		*result = true
+	}
 	return nil
 }
 
 // Get a file from this server
-func (s *DynamoServer) RemoteGet(key string, entry *ObjectEntry) error {
+func (s *DynamoServer) GetHelper(key string, result *DynamoResult) error {
 	if s.isCrashed {
-		return errors.New("Error in RemoteGet: Server is crashed")
+		return errors.New("Error in GetHelper: Server is crashed")
 	}
-	// Check for causaulity, TODO:
-	if _, ok := s.data[key]; ok {
-		*entry = s.data[key]
-	} else {
-		return errors.New("Error in RemoteGet: Entry not found")
+	objList, ok := s.data[key]
+	// Add everything to result
+	if ok {
+		result.EntryList = append(result.EntryList, objList...)
 	}
 	return nil
 }
@@ -149,10 +175,12 @@ func (s *DynamoServer) Get(key string, result *DynamoResult) error {
 	}
 	// First check local
 	success := 0
-	if _, ok := s.data[key]; ok {
+	conn, e := rpc.DialHTTP("tcp", s.selfNode.Address+":"+s.selfNode.Port)
+	e = conn.Call("MyDynamo.GetHelper", key, result)
+	if e == nil {
 		success++
-		result.EntryList = append(result.EntryList, s.data[key])
 	}
+	// Iterate same process for the rest of R quorums
 	for i := 0; success < s.rValue && i < len(s.preferenceList); i++ {
 		node := s.preferenceList[i]
 		// If a node sees itself on the preference list, it should be ignored
@@ -161,16 +189,39 @@ func (s *DynamoServer) Get(key string, result *DynamoResult) error {
 		}
 		// Connect
 		conn, e := rpc.DialHTTP("tcp", node.Address+":"+node.Port)
-		if e != nil {
-			return e
-		}
-		var res ObjectEntry
-		e = conn.Call("MyDynamo.RemoteGet", key, &res)
+		e = conn.Call("MyDynamo.GetHelper", key, result)
 		if e == nil {
-			result.EntryList = append(result.EntryList, res)
 			success++
 		}
 	}
+	// Perform causality checks over all nodes
+	objList := result.EntryList
+	if len(objList) == 0 {
+		return nil
+	}
+	latestEntry := objList[0]
+	// First find most causally descended entry
+	for i := 1; i < len(objList); i++ {
+		objEntry := objList[i]
+		if latestEntry.Context.Clock.LessThan(objEntry.Context.Clock) {
+			latestEntry = objEntry
+		}
+	}
+	// Append all concurrent to most causally descended entry
+	resultList := make([]ObjectEntry, 0)
+	resultList = append(resultList, latestEntry)
+	for i := 0; i < len(objList); i++ {
+		objEntry := objList[i]
+		if latestEntry.Context.Clock.Concurrent(objEntry.Context.Clock) {
+			if latestEntry.Context.Clock.Equals(objEntry.Context.Clock) {
+				continue
+			} else {
+				resultList = append(resultList, objEntry)
+			}
+		} 
+	}
+	// Add results to parameter result
+	result.EntryList = resultList
 	return nil
 }
 
@@ -188,7 +239,7 @@ func NewDynamoServer(w int, r int, hostAddr string, hostPort string, id string) 
 		selfNode:       selfNodeInfo,
 		nodeID:         id,
 		isCrashed:      false,
-		data:           make(map[string]ObjectEntry),
+		data:           make(map[string][]ObjectEntry),
 		notWrittenList: make([]DynamoNode, 0),
 	}
 }
@@ -200,17 +251,13 @@ func ServeDynamoServer(dynamoServer DynamoServer) error {
 		log.Println(DYNAMO_SERVER, "Server Can't start During Name Registration")
 		return e
 	}
-
-	// log.Println(DYNAMO_SERVER, "Successfully Registered the RPC Interfaces")
-
+	log.Println(DYNAMO_SERVER, "Successfully Registered the RPC Interfaces")
 	l, e := net.Listen("tcp", dynamoServer.selfNode.Address+":"+dynamoServer.selfNode.Port)
 	if e != nil {
 		log.Println(DYNAMO_SERVER, "Server Can't start During Port Listening")
 		return e
 	}
-
-	// log.Println(DYNAMO_SERVER, "Successfully Listening to Target Port ", dynamoServer.selfNode.Address+":"+dynamoServer.selfNode.Port)
+	log.Println(DYNAMO_SERVER, "Successfully Listening to Target Port ", dynamoServer.selfNode.Address+":"+dynamoServer.selfNode.Port)
 	log.Println(DYNAMO_SERVER, "Serving Server Now")
-
 	return http.Serve(l, rpcServer)
 }
