@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-ini/ini"
 	"log"
 	"mydynamo"
 	"net/rpc"
@@ -9,8 +10,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/go-ini/ini"
 )
 
 func main() {
@@ -47,22 +46,22 @@ func main() {
 	}
 	fmt.Println("Done loading configurations")
 
-	// Keep a list of servers so we can communicate with them
+	//keep a list of servers so we can communicate with them
 	serverList := make([]mydynamo.DynamoServer, 0)
 
-	// Spin up a dynamo cluster
+	//spin up a dynamo cluster
 	dynamoNodeList := make([]mydynamo.DynamoNode, 0)
 
-	// Use a waitgroup to ensure that we don't exit this goroutine until all servers have exited
+	//Use a waitgroup to ensure that we don't exit this goroutine until all servers have exited
 	wg := new(sync.WaitGroup)
 	wg.Add(cluster_size)
 	for idx := 0; idx < cluster_size; idx++ {
 
-		// Create a server instance
+		//Create a server instance
 		serverInstance := mydynamo.NewDynamoServer(w_value, r_value, "localhost", strconv.Itoa(serverPort+idx), strconv.Itoa(idx))
 		serverList = append(serverList, serverInstance)
 
-		// Create an anonymous function in a goroutine that starts the server
+		//Create an anonymous function in a goroutine that starts the server
 		go func() {
 			log.Fatal(mydynamo.ServeDynamoServer(serverInstance))
 			wg.Done()
@@ -74,12 +73,11 @@ func main() {
 		dynamoNodeList = append(dynamoNodeList, nodeInfo)
 	}
 
-	// Create a duplicate of dynamoNodeList that we can rotate
-	// so that each node has a distinct preference list
+	//Create a duplicate of dynamoNodeList that we can rotate
+	//so that each node has a distinct preference list
 	nodePreferenceList := dynamoNodeList
-
-	// Send the preference list to all servers
 	time.Sleep(2 * time.Second)
+	//Send the preference list to all servers
 	for _, info := range dynamoNodeList {
 		var empty mydynamo.Empty
 		c, _ := rpc.DialHTTP("tcp", info.Address+":"+info.Port)
@@ -95,6 +93,6 @@ func main() {
 	}
 	/*---------------------------------------------*/
 
-	// Wait for all servers to finish
+	//wait for all servers to finish
 	wg.Wait()
 }

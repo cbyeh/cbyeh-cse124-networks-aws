@@ -9,32 +9,32 @@ Additionally, you will want to read and understand this paper: [DynamoDB paper](
 ## Data Types
 The starter code defines the following (long) list of types for your usage in `Dynamo_Types.go`:
 ```golang
-// Placeholder type for RPC functions that don't need an argument list or a return value
+//Placeholder type for RPC functions that don't need an argument list or a return value
 type Empty struct {}
 
-// Context associated with some value
+//Context associated with some value
 type Context struct {
     Clock VectorClock
 }
 
-// Information needed to connect to a DynamoNOde
+//Information needed to connect to a DynamoNOde
 type DynamoNode struct {
     Address string
     Port    string
 }
 
-// A single value, as well as the Context associated with it
+//A single value, as well as the Context associated with it
 type ObjectEntry struct {
     Context Context
     Value  []byte
 }
 
-// Result of a Get operation, a list of ObjectEntry structs
+//Result of a Get operation, a list of ObjectEntry structs
 type DynamoResult struct {
     EntryList []ObjectEntry
 }
 
-// Arguments required for a Put operation: the key, the context, and the value
+//Arguments required for a Put operation: the key, the context, and the value
 type PutArgs struct {
     Key     string
     Context Context

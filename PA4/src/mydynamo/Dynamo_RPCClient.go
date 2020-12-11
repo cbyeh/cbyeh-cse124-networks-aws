@@ -11,7 +11,7 @@ type RPCClient struct {
 	rpcConn    *rpc.Client
 }
 
-// Removes the RPC connection associated with this client
+//Removes the RPC connection associated with this client
 func (dynamoClient *RPCClient) CleanConn() {
 	var e error
 	if dynamoClient.rpcConn != nil {
@@ -24,7 +24,7 @@ func (dynamoClient *RPCClient) CleanConn() {
 	return
 }
 
-// Establishes an RPC connection to the server this Client is associated with
+//Establishes an RPC connection to the server this Client is associated with
 func (dynamoClient *RPCClient) RpcConnect() error {
 	if dynamoClient.rpcConn != nil {
 		return nil
@@ -39,7 +39,7 @@ func (dynamoClient *RPCClient) RpcConnect() error {
 	return e
 }
 
-// Removes and re-establishes an RPC connection to the server
+//Removes and re-establishes an RPC connection to the server
 func (dynamoClient *RPCClient) CleanAndConn() error {
 	var e error
 	if dynamoClient.rpcConn != nil {
@@ -58,7 +58,7 @@ func (dynamoClient *RPCClient) CleanAndConn() error {
 	return e
 }
 
-// Puts a value to the server.
+//Puts a value to the server.
 func (dynamoClient *RPCClient) Put(value PutArgs) bool {
 	var result bool
 	if dynamoClient.rpcConn == nil {
@@ -72,7 +72,7 @@ func (dynamoClient *RPCClient) Put(value PutArgs) bool {
 	return result
 }
 
-// Gets a value from a server.
+//Gets a value from a server.
 func (dynamoClient *RPCClient) Get(key string) *DynamoResult {
 	var result DynamoResult
 	if dynamoClient.rpcConn == nil {
@@ -86,7 +86,7 @@ func (dynamoClient *RPCClient) Get(key string) *DynamoResult {
 	return &result
 }
 
-// Emulates a crash on the server this client is connected to
+//Emulates a crash on the server this client is connected to
 func (dynamoClient *RPCClient) Crash(seconds int) bool {
 	if dynamoClient.rpcConn == nil {
 		return false
@@ -100,7 +100,7 @@ func (dynamoClient *RPCClient) Crash(seconds int) bool {
 	return success
 }
 
-// Instructs the server this client is connected to gossip
+//Instructs the server this client is connected to gossip
 func (dynamoClient *RPCClient) Gossip() {
 	if dynamoClient.rpcConn == nil {
 		return
@@ -113,7 +113,7 @@ func (dynamoClient *RPCClient) Gossip() {
 	}
 }
 
-// Creates a new DynamoRPCClient
+//Creates a new DynamoRPCClient
 func NewDynamoRPCClient(serverAddr string) *RPCClient {
 	return &RPCClient{
 		ServerAddr: serverAddr,

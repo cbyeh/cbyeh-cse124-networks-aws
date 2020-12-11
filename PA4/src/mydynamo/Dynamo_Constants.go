@@ -8,11 +8,11 @@ const LOAD_FROM_METAFILE int = 1
 
 const USAGE_STRING string = "usage: ./run-server [config file]"
 
-// Server constants
+//Server constants
 const ARG_COUNT int = 2
 const CONFIG_FILE_INDEX int = 1
 
-// Configuration constant labels
+//configuration constant labels
 const EX_USAGE int = 2
 const EX_CONFIG int = 3
 const MYDYNAMO string = "mydynamo"

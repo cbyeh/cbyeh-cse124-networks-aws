@@ -1,106 +1,139 @@
 package mydynamo
-
+// import (
+// 	"log"
+// )
 type VectorClock struct {
-	PairMap map[string]int
+	//todo
+	PairMap		map[string]Pair
+
 }
 
-// Creates a new VectorClock
+type Pair struct {
+	nodeId		string
+	ClockNumber	int
+}
+
+//Creates a new VectorClock
 func NewVectorClock() VectorClock {
-	newVectorClock := VectorClock{
-		PairMap: make(map[string]int),
-	}
+	newPairMap := make(map[string]Pair)
+
+	newVectorClock := VectorClock{newPairMap}
+
 	return newVectorClock
+
 }
 
-// Returns true if the other VectorClock is causally descended from this one
+//Returns true if the other VectorClock is causally descended from this one
 func (s VectorClock) LessThan(otherClock VectorClock) bool {
-	// V(a) < V(b) when a_k <= b_k for all k and V(a) != V(b)
-	for k, v := range s.PairMap {
-		otherClockNum, ok := otherClock.PairMap[k]
+
+	for nodeId, currPair := range s.PairMap {
+		otherPair, ok := otherClock.PairMap[nodeId]
 		if ok {
-			if v > otherClockNum {
+			if otherPair.ClockNumber < currPair.ClockNumber {
 				return false
 			}
 		} else {
 			return false
 		}
 	}
-	for k, v := range otherClock.PairMap {
-		currClockNum, ok := s.PairMap[k]
-		if ok {
-			if v < currClockNum {
-				return false
-			}
-		}
-	}
+
+	// for nodeId, otherPair := range otherClock.PairMap {
+	// 	currPair, ok := s.PairMap[nodeId]
+	// 	if ok {
+	// 		if otherPair.ClockNumber < currPair.ClockNumber {
+	// 			return false
+	// 		}
+	// 	}
+	// }
+
 	if s.Equals(otherClock) {
 		return false
 	}
+
 	return true
+
+
+
 }
 
-// Returns true if neither VectorClock is causally descended from the other
+//Returns true if neither VectorClock is causally descended from the other
 func (s VectorClock) Concurrent(otherClock VectorClock) bool {
-	// a || b if a_i < b_i and a_j > b_j for some i, j
+
 	if (!s.LessThan(otherClock)) && (!otherClock.LessThan(s)) {
 		return true
 	}
 	return false
 }
 
-// Increments this VectorClock at the element associated with nodeId
+//Increments this VectorClock at the element associated with nodeId
 func (s *VectorClock) Increment(nodeId string) {
-	_, ok := s.PairMap[nodeId]
+
+	pair, ok := s.PairMap[nodeId]
 	if ok {
-		s.PairMap[nodeId]++
+		newPair := Pair{nodeId, pair.ClockNumber + 1}
+		s.PairMap[nodeId] = newPair
 	} else {
-		s.PairMap[nodeId] = 1
+		newPair := Pair{nodeId, 1}
+		s.PairMap[nodeId] = newPair
 	}
+	
+	
 }
 
-// Changes this VectorClock to be causally descended from all VectorClocks in clocks
+//Changes this VectorClock to be causally descended from all VectorClocks in clocks
 func (s *VectorClock) Combine(clocks []VectorClock) {
-	// Return a vector clock >= all clocks, including s
-	maxMap := make(map[string]int)
-	for k, v := range s.PairMap {
-		maxMap[k] = v
+
+	maxMap := make(map[string]Pair)
+	
+	for nodeId, pair := range s.PairMap {
+		maxMap[nodeId] = Pair{pair.nodeId, pair.ClockNumber}
 	}
+
 	for _, c := range clocks {
-		cMap := c.PairMap
-		for k, v := range cMap {
-			maxClockNum, ok := maxMap[k]
-			if (ok && v > maxClockNum) || (!ok) {
-				maxMap[k] = v
+		for nodeId, currPair := range c.PairMap {
+			maxPair, ok := maxMap[nodeId]
+			if (ok && currPair.ClockNumber > maxPair.ClockNumber) || (!ok) {
+				newPair := Pair{nodeId, currPair.ClockNumber}
+				maxMap[nodeId] = newPair
 			}
 		}
 	}
+
 	var newVectorClock VectorClock
 	newVectorClock.PairMap = maxMap
+
 	*s = newVectorClock
+
 }
 
-// Tests if two VectorClocks are equal
-func (s VectorClock) Equals(otherClock VectorClock) bool {
-	// V(a) = V(b) when a_k == b_k for all k
-	for k, v := range s.PairMap {
-		otherClockNum, ok := otherClock.PairMap[k]
+//Tests if two VectorClocks are equal
+func (s *VectorClock) Equals(otherClock VectorClock) bool {
+	for nodeId, currPair := range s.PairMap {
+		otherPair, ok := otherClock.PairMap[nodeId]
 		if ok {
-			if v != otherClockNum {
+			if currPair.ClockNumber  != otherPair.ClockNumber {
 				return false
 			}
 		} else {
 			return false
 		}
 	}
-	for k, v := range otherClock.PairMap {
-		currClockNum, ok := s.PairMap[k]
+
+	for nodeId, otherPair := range otherClock.PairMap {
+		currPair, ok := s.PairMap[nodeId]
 		if ok {
-			if v != currClockNum {
+			if otherPair.ClockNumber != currPair.ClockNumber {
 				return false
 			}
 		} else {
 			return false
 		}
 	}
+
 	return true
+}
+
+func (s *VectorClock) GetArr(c VectorClock) []VectorClock {
+	arr := []VectorClock{c}
+	return arr
 }

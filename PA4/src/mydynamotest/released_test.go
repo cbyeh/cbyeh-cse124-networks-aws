@@ -4,7 +4,60 @@ import (
     "mydynamo"
     "testing"
     "time"
+    "log"
 )
+
+
+func TestCrash(t *testing.T){
+    t.Logf("Starting TestCrash test")
+    cmd := InitDynamoServer("./myconfig.ini")
+    ready := make(chan bool)
+    go StartDynamoServer(cmd, ready)
+    defer KillDynamoServer(cmd)
+
+    time.Sleep(3 * time.Second)
+
+    clientInstance0 := MakeConnectedClient(8080)
+    clientInstance1 := MakeConnectedClient(8081)
+    clientInstance0.Put(PutFreshContext("s1", []byte("abcde")))
+
+    time.Sleep(1 * time.Second)
+
+    clientInstance0.Crash(3)
+    clientInstance0.Gossip()
+
+    gotValuePtr := clientInstance1.Get("s1")
+    log.Println("From get")
+    var emp mydynamo.DynamoResult
+
+    if *gotValuePtr != *emp {
+        t.Fail()
+        t.Logf("TestCrash: Crash failed at s1")
+    }
+
+    time.Sleep(3 * time.Second)
+
+    clientInstance1.Put(PutFreshContext("s2", []byte("fgjds")))
+
+    time.Sleep(1 * time.Second)
+
+    clientInstance1.Crash(3)
+
+    gotValuePtr = clientInstance1.Get("s2")
+    if gotValuePtr != nil {
+        t.Fail()
+        t.Logf("TestCrash: Crash failed at s2")
+    }
+
+    time.Sleep(3 * time.Second)
+
+    gotValuePtr = clientInstance1.Get("s2")
+    gotValue := *gotValuePtr
+    if(len(gotValue.EntryList) != 1 || !valuesEqual(gotValue.EntryList[0].Value, []byte("fhjds"))){
+        t.Fail()
+        t.Logf("TestCrash: Failed to get value")
+    }
+}
 
 func TestPutW2(t *testing.T){
     t.Logf("Starting PutW2 test")
